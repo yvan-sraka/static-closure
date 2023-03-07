@@ -8,46 +8,37 @@
 {
   inputs.flake-utils.url = "github:numtide/flake-utils";
   outputs = { self, nixpkgs, flake-utils }:
+    with builtins;
     flake-utils.lib.eachDefaultSystem (system:
       let
         pkgs = nixpkgs.legacyPackages.${system};
-        setup-minio-client = ''
-          # Overriding $HOME in a derivation is indeed a hack ...
-          export HOME=$(mktemp -d)
-          ${pkgs.minio-client}/bin/mc alias set zw3rk https://s3.zw3rk.com/ "" ""
-          # ... and we should rather rely on so Nix builtins (that are currently
-          # broken): pkgs.fetchurl { url = "s3://s3.zw3rk.com/..."; };
-        '';
+        url = "https://s3.zw3rk.com/devx/";
         closure = name:
-          pkgs.runCommand "download-closure" { } ''
-            ${setup-minio-client}
-            TMP=$(mktemp)
-            ${pkgs.minio-client}/bin/mc cp zw3rk/devx/${system}.${name}.zstd $TMP
-            ${pkgs.zstd}/bin/zstd -d $TMP -o $out
+          pkgs.runCommand "import-closure" { } ''
+            ${pkgs.zstd}/bin/zstd -d ${closure-zstd name} -o $out
+            ${pkgs.nix}/bin/nix-store --import < $out
           '';
-        dev-env = name:
-          pkgs.runCommand "download-dev-env" { } ''
-            ${setup-minio-client}
-            ${pkgs.minio-client}/bin/mc cp zw3rk/devx/${system}.${name}.sh $out
-          '';
+        closure-zstd = name: fetchurl "${url}${system}.${name}.zstd";
+        dev-env = name: fetchurl "${url}${system}.${name}.sh";
       in {
-        devShells = with builtins;
-          listToAttrs (map (name: {
-            inherit name;
-            value = pkgs.mkShell { shellHook = ''
-              sudo nix-store --import < ${closure name}
+        devShells = listToAttrs (map (name: {
+          inherit name;
+          value = pkgs.mkShell {
+            shellHook = ''
+              echo "Bootstrapped from: ${closure name}"
               source ${dev-env name}
-            ''; };
-          }) [
-            "ghc8107"
-            "ghc902"
-            "ghc925"
-            "ghc8107-minimal"
-            "ghc902-minimal"
-            "ghc925-minimal"
-            "ghc8107-static-minimal"
-            "ghc902-static-minimal"
-            "ghc925-static-minimal"
-          ]);
+            '';
+          };
+        }) [
+          "ghc8107"
+          "ghc902"
+          "ghc925"
+          "ghc8107-minimal"
+          "ghc902-minimal"
+          "ghc925-minimal"
+          "ghc8107-static-minimal"
+          "ghc902-static-minimal"
+          "ghc925-static-minimal"
+        ]);
       });
 }
