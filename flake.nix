@@ -41,4 +41,7 @@
           "ghc925-static-minimal"
         ]);
       });
+  nixConfig.extra-trusted-public-keys = [
+    "s3.zw3rk.com:fx41B+c2mUAvQt+wgzD0g/SBesJhUiShi0s6dV549Co="
+  ];
 }
