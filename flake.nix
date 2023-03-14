@@ -14,9 +14,16 @@
         pkgs = nixpkgs.legacyPackages.${system};
         url = "https://s3.zw3rk.com/devx/";
         closure = name:
-          pkgs.runCommand "import-closure" { } ''
-            ${pkgs.zstd}/bin/zstd -d ${closure-zstd name} -o $out
-            ${pkgs.nix}/bin/nix-store --import < $out
+          pkgs.runCommand "import-downloaded-closure" {
+            # requiredSystemFeatures = [ "recursive-nix" ];
+            nativeBuildInputs = with pkgs; [ nix zstd ];
+          } ''
+            zstd -d ${closure-zstd name} -o $out
+            HOME=$(mktemp -d)
+            echo "Warning: this script should be run (the first time) as a trusted Nix user:"
+            echo "https://nixos.org/manual/nix/stable/command-ref/conf-file.html#conf-trusted-users"
+            echo "n.b. root is by default the only trusted user on a fresh nix setup!"
+            nix-store --import < $out
           '';
         closure-zstd = name: fetchurl "${url}${system}.${name}.zstd";
         dev-env = name: fetchurl "${url}${system}.${name}.sh";
@@ -41,7 +48,6 @@
           "ghc925-static-minimal"
         ]);
       });
-  nixConfig.extra-trusted-public-keys = [
-    "s3.zw3rk.com:fx41B+c2mUAvQt+wgzD0g/SBesJhUiShi0s6dV549Co="
-  ];
+  nixConfig.extra-trusted-public-keys =
+    [ "s3.zw3rk.com:fx41B+c2mUAvQt+wgzD0g/SBesJhUiShi0s6dV549Co=" ];
 }
